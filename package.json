@@ -1,6 +1,8 @@
 {
   "name": "weread-dl-skill",
   "version": "1.0.0",
+  "author": "ColorlessBoy",
+  "license": "MIT",
   "private": true,
   "description": "微信读书 AI 阅读助手",
   "scripts": {
