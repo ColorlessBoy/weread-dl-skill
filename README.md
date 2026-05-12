@@ -93,7 +93,7 @@ weread-dl-skill/
 | `chapter_e_2` | CSS 样式 |
 
 解码即：去除前 33 个字符 → base64 decode → UTF-8 解码。
-完整解密可前往 [ebook-exporter.deno.dev](https://ebook-exporter.deno.dev)。
+运行 `node scripts/decode.js books/<书名>/chapters` 即可获取纯文本。
 
 ## 技术实现
 
@@ -106,7 +106,6 @@ weread-dl-skill/
 
 - ⚠️ 使用第三方工具有封号风险，建议使用小号
 - VIP 专享内容需要 VIP 权益才能缓存导出
-- 章节数据可配合 [ebook-exporter.deno.dev](https://ebook-exporter.deno.dev) 解密转换
 
 ## License
 
