@@ -9,7 +9,8 @@
 - **章节解码** — 拦截 `/web/book/chapter/e_X` API，解码 base64 HTML 章节内容
 - **本地解码器** — `scripts/decode.js` 独立解码脚本，无需外部服务
 - **阅读存档** — 每本书一个文件夹，保存 metadata / 章节加密数据 / 截图 / 聊天记录
-- **AI 对话** — 基于当前章节内容与用户讨论书中观点
+- **标注笔记拉取** — 自动获取划线/高亮和笔记，保存到 notes.md，帮助理解阅读关注点
+- **AI 对话** — 基于当前章节内容、标注和笔记与用户深度讨论书中观点
 
 ## 快速开始
 
@@ -34,13 +35,21 @@ node scripts/login.js
 
 脚本会打开 headless Chromium → 弹出微信二维码 → 截图二维码路径 → 等待扫码 → 保存 cookies。
 
-### 2. 打开书籍
+### 2. 打开书籍（自动拉取标注+笔记）
 
 ```bash
 node scripts/read-chapter.js <bookId>
 ```
 
 bookId 从书架列表或阅读 URL（`/web/reader/{bookId}`）获取。
+
+### 3. 单独拉取标注+笔记（不读章节）
+
+```bash
+node scripts/get-notes.js <bookId>
+```
+
+结果保存在 `books/<书名>/notes.md`。
 
 ### 3. 解码章节内容
 
@@ -59,12 +68,13 @@ weread-dl-skill/
 ├── .gitignore
 ├── scripts/
 │   ├── login.js                      # 扫码登录
-│   ├── read-chapter.js               # 打开书籍 + API 拦截 + 存档
+│   ├── read-chapter.js               # 打开书籍 + API 拦截 + 存档 + 标注笔记
+│   ├── get-notes.js                  # 单独拉取标注+笔记
 │   ├── decode.js                     # 本地章节解码器
 │   └── list-books.js                 # 书架列表
 └── books/
     └── <书名>/
-        ├── metadata.json             # 书籍信息 + 目录 + 阅读进度
+        ├── metadata.json             # 书籍信息 + 目录 + 阅读进度 + 标注/笔记统计
         ├── current-chapter.md        # 当前章节标记
         ├── chapters/
         │   ├── chapter_e0.enc        # 加密章节数据
@@ -74,6 +84,7 @@ weread-dl-skill/
         │   └── toc.json              # 目录结构数据
         ├── screenshots/
         │   └── YYYY-MM-DD.png        # 阅读页面截图
+        ├── notes.md                  # 标注（划线）+ 笔记全文
         └── chat.md                   # 聊天记录
 ```
 

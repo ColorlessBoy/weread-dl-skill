@@ -67,6 +67,24 @@ async function run() {
     const page = await ctx.newPage();
     await loadCookies(ctx);
 
+    // 收集标注/笔记数据
+    let bookmarkData = null;
+    let reviewData = null;
+    let readInfoData = null;
+    page.on('response', async resp => {
+      const url = resp.url();
+      try {
+        // 注意：API 使用的 bookId 格式可能与阅读页 URL 不同（如带 CB_ 前缀）
+        // 所以不按 bookId 过滤，只按 API 路径匹配
+        if (url.includes('/web/book/bookmarklist'))
+          bookmarkData = await resp.json();
+        if (url.includes('/web/review/list'))
+          reviewData = await resp.json();
+        if (url.includes('/web/book/readInfo'))
+          readInfoData = await resp.json();
+      } catch(e) {}
+    });
+
     await page.goto(`https://weread.qq.com/web/reader/${bid}`, { waitUntil: 'networkidle', timeout: 25000 });
     if (!page.url().includes('/web/reader/')) { console.error('Session expired'); process.exit(1); }
     await page.waitForTimeout(10000);
@@ -185,6 +203,51 @@ async function run() {
         const mark = c.includes('当前') ? '>' : ' ';
         console.log(`  ${mark} ${c}`);
       });
+    }
+
+    // ===== 保存标注和笔记 =====
+    const notesFilePath = path.join(bookDir, 'notes.md');
+    const bookmarks = bookmarkData?.updated || [];
+    const reviews = reviewData?.reviews || [];
+
+    if (bookmarks.length > 0 || reviews.length > 0) {
+      let notesContent = `# 《${bookName}》标注与笔记\n\n`;
+      notesContent += `> 作者：${author}\n> 更新：${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}\n\n---\n\n`;
+
+      if (bookmarks.length > 0) {
+        notesContent += `## 📌 标注（共 ${bookmarks.length} 条）\n\n`;
+        const byChapter = {};
+        for (const b of bookmarks) {
+          const ch = b.chapterName || '(未知章节)';
+          if (!byChapter[ch]) byChapter[ch] = [];
+          byChapter[ch].push(b);
+        }
+        for (const [ch, items] of Object.entries(byChapter)) {
+          notesContent += `### ${ch}\n\n`;
+          for (const b of items) {
+            notesContent += `> ${(b.markText || '').replace(/\n/g, ' ')}\n\n`;
+          }
+        }
+      }
+
+      if (reviews.length > 0) {
+        notesContent += `---\n\n## 📝 笔记（共 ${reviews.length} 条）\n\n`;
+        for (const r of reviews) {
+          const rev = r.review || {};
+          notesContent += `### ${rev.chapterName || '(未知章节)'}\n\n`;
+          if (rev.abstract) notesContent += `> ${rev.abstract}\n\n`;
+          notesContent += `${rev.content || ''}\n\n`;
+        }
+      }
+
+      fs.writeFileSync(notesFilePath, notesContent, 'utf-8');
+      meta.bookmarkCount = bookmarks.length;
+      meta.reviewCount = reviews.length;
+      meta.notesUpdatedAt = new Date().toISOString();
+      fs.writeFileSync(metaFile, JSON.stringify(meta, null, 2), 'utf-8');
+
+      console.log(`  标注: ${bookmarks.length} 条`);
+      console.log(`  笔记: ${reviews.length} 条`);
     }
 
     await saveCookies(ctx);
