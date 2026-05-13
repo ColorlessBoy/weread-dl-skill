@@ -75,7 +75,6 @@ async function login() {
 
   const browser = await chromium.launch({
     headless: true,
-    channel: 'chrome',
   });
 
   try {

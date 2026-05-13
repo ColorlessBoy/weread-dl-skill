@@ -62,20 +62,23 @@ function stripHtml(html) {
 }
 
 /**
- * 解码完整章节
+ * 解码完整章节（旧格式：扁平目录）
  * @param {string} chaptersDir - 章节文件夹（包含 chapter_e0.enc 等）
  * @returns {{ text: string, css: string, html: string, parts: object }}
  */
 function decodeChapter(chaptersDir) {
   const parts = {};
-  // 支持两种文件名格式: chapter_e0.enc 或 chapter_e_0.enc
   for (const suffix of ['e0', 'e1', 'e2', 'e3']) {
-    let file = path.join(chaptersDir, `chapter_${suffix}.enc`);
-    if (!fs.existsSync(file)) {
-      file = path.join(chaptersDir, `chapter_e_${suffix.substring(1)}.enc`);
-    }
-    if (fs.existsSync(file)) {
-      parts[suffix] = decodeEncFile(file);
+    const candidates = [
+      path.join(chaptersDir, `${suffix}.enc`),
+      path.join(chaptersDir, `chapter_${suffix}.enc`),
+      path.join(chaptersDir, `chapter_e_${suffix.substring(1)}.enc`),
+    ];
+    for (const file of candidates) {
+      if (fs.existsSync(file)) {
+        parts[suffix] = decodeEncFile(file);
+        break;
+      }
     }
   }
 
@@ -98,6 +101,47 @@ function decodeChapter(chaptersDir) {
 }
 
 /**
+ * 解码所有章节（新格式：每章一个子目录）
+ * @param {string} chaptersDir - 包含 chapter_* 子目录的文件夹
+ * @returns {string} 拼接后的文本
+ */
+function decodeAllChapters(chaptersDir) {
+  const entries = fs.readdirSync(chaptersDir, { withFileTypes: true });
+  const chapterDirs = entries
+    .filter(e => e.isDirectory() && e.name.startsWith('chapter_'))
+    .sort((a, b) => {
+      const na = parseInt(a.name.replace('chapter_', ''), 10);
+      const nb = parseInt(b.name.replace('chapter_', ''), 10);
+      if (!isNaN(na) && !isNaN(nb)) return na - nb;
+      return a.name.localeCompare(b.name);
+    });
+
+  const results = [];
+  for (const dir of chapterDirs) {
+    const dirPath = path.join(chaptersDir, dir.name);
+    const parts = {};
+    for (const suffix of ['e0', 'e1', 'e2', 'e3']) {
+      const file = path.join(dirPath, `${suffix}.enc`);
+      if (fs.existsSync(file)) {
+        parts[suffix] = decodeEncFile(file);
+      }
+    }
+
+    let bodyParts = [];
+    if (parts['e0']) bodyParts.push(extractBody(parts['e0']));
+    if (parts['e1']) bodyParts.push(extractBody(parts['e1']));
+    if (parts['e3']) bodyParts.push(extractBody(parts['e3']));
+
+    const html = bodyParts.join('\n');
+    const text = stripHtml(html);
+    const chapterLabel = dir.name.replace('chapter_', '');
+    results.push(`=== Chapter ${chapterLabel} ===\n\n${text}\n======`);
+  }
+
+  return results.join('\n\n');
+}
+
+/**
  * 解码单个 enc 文件并输出文本
  */
 if (require.main === module) {
@@ -111,14 +155,25 @@ if (require.main === module) {
 
   const stat = fs.statSync(target);
   if (stat.isDirectory()) {
-    const result = decodeChapter(target);
-    console.log('='.repeat(60));
-    console.log('解码完成');
-    console.log('包含部分:', result.parts.join(', '));
-    console.log('文本长度:', result.text.length);
-    console.log('CSS长度:', result.css.length);
-    console.log('='.repeat(60));
-    console.log(result.text);
+    const entries = fs.readdirSync(target, { withFileTypes: true });
+    const hasChapterDirs = entries.some(e => e.isDirectory() && e.name.startsWith('chapter_'));
+    if (hasChapterDirs) {
+      const result = decodeAllChapters(target);
+      console.log('='.repeat(60));
+      console.log('解码完成');
+      console.log('文本长度:', result.length);
+      console.log('='.repeat(60));
+      console.log(result);
+    } else {
+      const result = decodeChapter(target);
+      console.log('='.repeat(60));
+      console.log('解码完成');
+      console.log('包含部分:', result.parts.join(', '));
+      console.log('文本长度:', result.text.length);
+      console.log('CSS长度:', result.css.length);
+      console.log('='.repeat(60));
+      console.log(result.text);
+    }
   } else {
     const decoded = decodeEncFile(target);
     if (decoded) {
@@ -129,4 +184,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { decodeEncFile, decodeChapter, stripHtml, extractBody };
+module.exports = { decodeEncFile, decodeChapter, decodeAllChapters, stripHtml, extractBody };

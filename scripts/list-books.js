@@ -39,7 +39,6 @@ async function listBooks() {
   console.log('[weread] 正在启动浏览器...');
   const browser = await chromium.launch({
     headless: true,
-    channel: 'chrome',
   });
 
   try {

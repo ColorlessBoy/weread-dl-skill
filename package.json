@@ -9,5 +9,8 @@
     "login": "node scripts/login.js",
     "list": "node scripts/list-books.js",
     "read": "node scripts/read-chapter.js"
+  },
+  "dependencies": {
+    "playwright": "^1.60.0"
   }
 }
