@@ -6,7 +6,7 @@ allowed-tools: Bash(node:*)
 
 # 微信读书 AI 阅读助手 (weread-dl)
 
-基于 [weread-dl](https://github.com/ColorlessBoy/weread-dl) 插件的 API 拦截原理，通过 Playwright 实现扫码登录 → 获取阅读进度 → 截获加密章节数据 → 存档和 AI 对话。
+通过 Playwright 实现扫码登录 → 获取阅读进度 → 从浏览器渲染 DOM 提取章节全文 → 存档和 AI 对话。
 
 ## 文件结构
 
@@ -21,26 +21,19 @@ weread-dl/
 └── books/
     └── <书名>/
         ├── metadata.json         # 书籍信息 + 目录 + 阅读进度 + 阅读历史
-        ├── current-chapter.md    # 当前章节标记（从 DOM 提取，参考用）
         ├── chapters/
-        │   ├── chapter_e0.enc    # 加密章节数据（可去 ebook-exporter 解密）
-        │   ├── chapter_e1.enc
-        │   ├── ...
-        │   └── toc.json          # 目录结构数据
+        │   └── chapter_text.md   # 渲染后的章节全文（从 DOM 提取）
         ├── screenshots/
         │   └── YYYY-MM-DD.png    # 每次阅读的页面截图
-        └── chat.md               # 和彭总的聊天记录
+        └── chat.md               # 聊天记录
 ```
 
 ## 工作原理
 
-### 章节加密
-微信读书网页版使用 canvas 渲染正文（版权保护），章节数据通过 API `/web/book/chapter/e_N` 以 **AES 加密** 形式传输：
-```
-32位hex校验码 + base64(AES加密数据)
-```
-本工具拦截原始加密数据，保存为 `.enc` 文件。解密可前往：
-https://ebook-exporter.deno.dev
+### 章节提取
+微信读书网页版使用 CSS 绝对定位打散字符进行版权保护。本工具通过 Playwright 打开书籍阅读页，从渲染后的 DOM 中获取所有 `position: absolute` 的文本元素，按视觉坐标（top/left）排序重组，重建完整章节文本。
+
+**不涉及翻页操作**，不影响用户阅读进度。
 
 ### 阅读进度
 从页面目录元素自动提取当前章节和百分比进度，记录在 metadata.json 中。

@@ -5,3 +5,4 @@ scripts/login-qrcode.png
 screenshots/
 output/
 *.log
+node_modules/
